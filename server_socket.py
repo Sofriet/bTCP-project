@@ -339,7 +339,10 @@ class BTCPServerSocket(BTCPSocket):
             # Wait until one segment becomes available in the buffer, or
             # timeout signalling disconnect.
             logger.info("Blocking get for first chunk of data.")
-            data.extend(self._recvbuf.get(block=True, timeout=10))
+            # NOTE: helper function of 3 lines below and checking whether data_length = PAYLOAD_SIZE would improve code (but already handed in)
+            segment = self._recvbuf.get(block=True, timeout=10)
+            _, _, _, _, data_length, _ = self.unpack_segment_header(segment[:HEADER_SIZE])
+            data.extend(segment[HEADER_SIZE:HEADER_SIZE + data_length])
             logger.info("First chunk of data retrieved.")
             logger.info("Looping over rest of queue.")
             while True:
@@ -347,9 +350,9 @@ class BTCPServerSocket(BTCPSocket):
                 # exits the loop. If that happens, data contains received
                 # segments so that will *not* signal disconnect.
                 logger.info("trying to retrieve chunk")
-                #data.extend(self._recvbuf.get_nowait())
                 segment = self._recvbuf.get(block=True, timeout=10)
-                data.extend(segment[HEADER_SIZE:HEADER_SIZE + PAYLOAD_SIZE])
+                _, _, _, _, data_length, _ = self.unpack_segment_header(segment[:HEADER_SIZE])
+                data.extend(segment[HEADER_SIZE:HEADER_SIZE + data_length])
                 logger.info("Additional chunk of data retrieved.")
         except queue.Empty:
             logger.info("Queue emptied or timeout reached")
